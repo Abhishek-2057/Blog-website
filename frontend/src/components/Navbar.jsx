@@ -10,9 +10,9 @@ const Navbar = () => {
     return (
         <div>
             <div className="flex items-center bg-stone-50 text-black p-4 justify-between">
-                <div className="text-2xl font-bold ml-25">
+                <Link to='/' className="text-2xl font-bold ml-25">
                     ReadBlog
-                </div>
+                </Link>
 
                 <div className="mr-25">
                     <ul className="flex gap-8 text-lg text-black">
@@ -34,15 +34,15 @@ const Navbar = () => {
 
                         
 
-                        <li>Categories</li>
+                        <li><Link to='/allblogs'>Categories </Link></li>
 
-                        <li>
+                        {/* <li>
                             <Link to="/about">About</Link>
-                        </li>
+                        </li> */}
 
-                        <li>
+                        {/* <li>
                             <Link to="/contact">Contact</Link>
-                        </li>
+                        </li> */}
 
                         {/* Conditional Rendering Based on Login State */}
                         {isLoggedIn ? (

@@ -2,8 +2,12 @@
 from pymongo import MongoClient
 import os
 
-# Use environment variable or hardcoded URI
-MONGO_URI ="mongodb+srv://kavikanojiya010:IipRUOo3RuYecyAa@cluster0.barzat2.mongodb.net/chat-app?retryWrites=true&w=majority&appName=Cluster0"
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_URI") 
 
 client = MongoClient(MONGO_URI,
     tls=True,

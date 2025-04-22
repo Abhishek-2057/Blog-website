@@ -16,6 +16,7 @@ const PostBlog = () => {
   });
 
   const [imagePreview, setImagePreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false); // Track image upload status
 
   const categories = [
     "Technology",
@@ -36,11 +37,37 @@ const PostBlog = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData({ ...formData, image: file });
-      setImagePreview(URL.createObjectURL(file));
+  const handleImageUpload = async (file) => {
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+    const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Invalid file type. Only PNG, JPG, and WEBP are allowed.");
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File size exceeds the 2MB limit.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      setIsUploading(true); // Start uploading
+      const response = await axiosInstance.post("/api/upload-image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setIsUploading(false); // Stop uploading
+      return response.data.imageUrl; // Return the Cloudinary URL
+    } catch (error) {
+      setIsUploading(false); // Stop uploading
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image. Please try again.");
+      throw new Error("Failed to upload image");
     }
   };
 
@@ -59,21 +86,31 @@ const PostBlog = () => {
     ];
     for (const field of requiredFields) {
       if (!formData[field]) {
-        toast.error(`Please fill in the ${field} field.`); // Show error toast
+        toast.error(`Please fill in the ${field} field.`);
         return;
       }
     }
 
-    // Prepare form data for submission
-    const blogData = {
-      ...formData,
-      userId: user._id, // Automatically include the logged-in user's ID
-      image: formData.image ? formData.image.name : null, // Send image name or URL
-    };
+    // Additional validation
+    if (formData.description.length < 50) {
+      toast.error("Description must be at least 50 characters long.");
+      return;
+    }
 
     try {
+      // Upload the image to Cloudinary
+      const imageUrl = await handleImageUpload(formData.image);
+
+      // Prepare blog data for submission
+      const blogData = {
+        ...formData,
+        userId: user._id, // Automatically include the logged-in user's ID
+        image: imageUrl, // Use the Cloudinary URL
+      };
+
+      // Submit the blog data
       const response = await axiosInstance.post("/api/post/blogs", blogData);
-      toast.success("Blog published successfully!"); // Show success toast
+      toast.success("Blog published successfully!");
       console.log("Response:", response.data);
 
       // Reset form fields and image preview
@@ -89,7 +126,7 @@ const PostBlog = () => {
       setImagePreview(null);
     } catch (error) {
       console.error("Error publishing blog:", error);
-      toast.error("Failed to publish the blog. Please try again."); // Show error toast
+      toast.error("Failed to publish the blog. Please try again.");
     }
   };
 
@@ -198,14 +235,20 @@ const PostBlog = () => {
               />
             ) : (
               <div className="text-gray-500 text-sm text-center">
-                <p>Click to upload or drag and drop</p>
+                <p>Click to upload </p>
                 <p>PNG, JPG, or WEBP (MAX. 2MB)</p>
               </div>
             )}
             <input
               type="file"
               accept="image/*"
-              onChange={handleImageUpload}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  setFormData({ ...formData, image: file });
+                  setImagePreview(URL.createObjectURL(file));
+                }
+              }}
               className="hidden"
               id="fileInput"
             />
@@ -213,7 +256,7 @@ const PostBlog = () => {
               htmlFor="fileInput"
               className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
             >
-              Upload Image
+              {isUploading ? "Uploading..." : "Upload Image"}
             </label>
           </div>
         </div>
@@ -240,9 +283,12 @@ const PostBlog = () => {
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            className={`px-4 py-2 rounded-lg ${
+              isUploading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600 text-white"
+            }`}
+            disabled={isUploading}
           >
-            Publish Blog
+            {isUploading ? "Uploading..." : "Publish Blog"}
           </button>
         </div>
       </form>

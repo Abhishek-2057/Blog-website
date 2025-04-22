@@ -32,7 +32,7 @@ const HeroSection = ({ backgroundImage }) => {
 
         <div className="flex flex-col items-center justify-center mt-10 mb-10">
             <div className="text-3xl font-bold text-center mb-5">Welcome to Our Blog</div>
-            <div className='text-3xl font-bold text-center mb-5 bg-green-300' >Latest Articles</div>
+            <div className='text-3xl font-bold text-center mb-5 bg-green-300' >Latest Blogs</div>
         </div>
         
     </div>

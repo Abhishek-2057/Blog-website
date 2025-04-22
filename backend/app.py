@@ -4,11 +4,28 @@ from bson import ObjectId
 from bson.errors import InvalidId  # Import InvalidId exception
 from werkzeug.security import generate_password_hash, check_password_hash  # For password hashing
 import time
+import cloudinary
+import cloudinary.uploader
+import os
+from dotenv import load_dotenv
 
 from db import blog_collection ,user_collection # 👈 import from db.py
 
+
+# Load environment variables from .env
+load_dotenv()
+
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+
+
+
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+)
 
 # Utility function to convert ObjectId to string
 def serialize_blog(blog):
@@ -151,6 +168,43 @@ def get_user_blogs(user_id):
     # Serialize and return the blogs
     return jsonify([serialize_blog(blog) for blog in blogs]), 200
 
+
+@app.route("/api/upload-image", methods=["POST"])
+def upload_image():
+    try:
+        # Get the image file from the request
+        image = request.files.get("image")
+
+        if not image:
+            return jsonify({"error": "No image file provided"}), 400
+
+        # Validate file type
+        ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+        def allowed_file(filename):
+            return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+        if not allowed_file(image.filename):
+            return jsonify({"error": "Invalid file type. Only PNG, JPG, JPEG, and WEBP are allowed."}), 400
+
+        # Upload the image to Cloudinary
+        upload_result = cloudinary.uploader.upload(image, folder="blog_images")
+
+        # Return the Cloudinary URL and metadata
+        return jsonify({
+            "imageUrl": upload_result["secure_url"],
+            "publicId": upload_result["public_id"],
+            "width": upload_result["width"],
+            "height": upload_result["height"]
+        }), 200
+    except cloudinary.exceptions.Error as e:
+        print("Cloudinary error:", e)
+        return jsonify({"error": "Cloudinary upload failed"}), 500
+    except Exception as e:
+        print("Error uploading image:", e)
+        return jsonify({"error": "Failed to upload image"}), 500
+    
+    
+
 @app.route("/api/post/blogs", methods=["POST"])
 def add_blog():
     data = request.get_json()
@@ -171,7 +225,7 @@ def add_blog():
         "date": data["date"],
         "smallDescription": data["smallDescription"],
         "description": data["description"],
-        "image": data["image"],  # Base64 string
+        "image": data["image"],  # Cloudinary URL
         "userId": data["userId"],  # Associate the blog with the user
         "createdAt": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
     }
@@ -218,3 +272,6 @@ def delete_blog(blog_id):
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+
